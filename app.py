@@ -1,82 +1,72 @@
 import streamlit as st
-import requests
 import json
-import pandas as pd
+import requests
 
 st.set_page_config(layout="wide")
 
-df = pd.read_csv('pokemon_1.csv')
+with open('pokemon_index.json', 'r', encoding='utf-8') as arquivo:
+    nomes_pokemons = json.load(arquivo)
 
-st.title('POKEDEX')
+nome = st.selectbox('Escolha um Pokemon', nomes_pokemons.values())
 
+url = f'https://pokeapi.co/api/v2/pokemon/{nome}'
+dados_pokemon = requests.get(url).json()
 
-with open('pokemon_index.json', 'r', encoding='utf-8') as f:
-    index_pokemons = json.load(f)
+col1, col2, col3 = st.columns(3)
 
-nome = st.selectbox('Escolha um pokemon', index_pokemons.values())
+peso = dados_pokemon['weight'] /10
+altura = dados_pokemon['height'] /10
+imc = round(peso / (altura ** 2))
 
+with col1:
+    st.image(dados_pokemon['sprites']['front_default'], width=400)
+    st.write('Normal')
 
+with col2:
+    st.audio(dados_pokemon['cries']['latest'])
+    st.audio(dados_pokemon['cries']['legacy'])
 
-try:
-    pokemon = requests.get(f'https://pokeapi.co/api/v2/pokemon/{nome}').json()
+with col3:
+    st.image(dados_pokemon['sprites']['front_shiny'], width=400)
+    st.write('Shiny')
 
-    nome_p = pokemon['name']
-    st.title(nome_p.capitalize())
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.image(pokemon['sprites']['other']['showdown']['front_default'], width=200)
-        st.write('Padrão')
-        st.metric('Altura', f'{pokemon['height']/10}M')
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric('Altura', f'{altura} M')
 
-    with col2:
-        st.audio(pokemon['cries']['latest'])
-        st.audio(pokemon['cries']['legacy'])
-        try:
-            geracao = df[df['name'] == nome.capitalize()]['generation'].iloc[0]
-            st.metric('Geração', f'{geracao}')
-            imc = round((pokemon['weight']/10) / ((pokemon['height']/10)**2),2)
-            st.metric('IMC', imc)
-        except:
-            st.write('Informação sobre geração não encontrada.')
-        
+with col2:
+    st.metric('IMC', imc)
 
-    with col3:
-        st.image(pokemon['sprites']['other']['showdown']['front_shiny'], width=200)
-        st.write('Shiny')
-        st.metric('Peso', f'{pokemon['weight']/10}KG')
-
-    tipos, status, locais, habilidades = st.tabs(['Tipos', 'Status', 'Locais', 'Habilidades'])
-    with tipos:
-        for i in pokemon['types']:
-            st.markdown(f"- {i['type']['name'].capitalize()}")
-
-    with status:
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
-        with col1:
-            st.metric('HP', pokemon['stats'][0]['base_stat'])
-        with col2:
-            st.metric('Ataque', pokemon['stats'][1]['base_stat'])
-        with col3:
-            st.metric('Defesa', pokemon['stats'][2]['base_stat'])
-        with col4:
-            st.metric('Ataque Especial', pokemon['stats'][3]['base_stat'])
-        with col5:
-            st.metric('Defesa Especial', pokemon['stats'][4]['base_stat'])
-        with col6:
-            st.metric('Velocidade', pokemon['stats'][5]['base_stat'])
-    
-    with locais:
-        locs = requests.get(pokemon['location_area_encounters']).json()
-        for i in locs:
-            st.markdown(f'- {i['location_area']['name'].capitalize()}')
-
-    with habilidades:
-        for i in pokemon['abilities']:
-            st.markdown(f'- {i['ability']['name'].capitalize()}')
+with col3:
+    st.metric('Peso', f'{peso} KG')
 
 
-    st.markdown('---')
+tipos, status, locais, habilidades = st.tabs(['Tipos', 'Status', 'Locais', 'Habilidades'])
 
-    
-except:
-    st.warning('Digite o nome do pokemon corretamente.')
+with tipos:
+    for i in dados_pokemon['types']:
+        st.markdown(f'- {i['type']['name']}')
+
+with status:
+    hp, ataque, defesa, ataque_esp, defesa_esp, velocidade = st.columns(6)
+    with hp:
+        st.metric('HP', dados_pokemon['stats'][0]['base_stat'])
+    with ataque:
+        st.metric('Ataque', dados_pokemon['stats'][1]['base_stat'])
+    with defesa:
+        st.metric('Defesa', dados_pokemon['stats'][2]['base_stat'])
+    with ataque_esp:
+        st.metric('Ataque Especial', dados_pokemon['stats'][3]['base_stat'])
+    with defesa_esp:
+        st.metric('Defesa Especial', dados_pokemon['stats'][4]['base_stat'])
+    with velocidade:
+        st.metric('Velocidade', dados_pokemon['stats'][5]['base_stat'])
+
+with locais:
+    locais = requests.get(dados_pokemon['location_area_encounters']).json()
+    for local in locais:
+        st.markdown(f'- {local['location_area']['name']}')
+
+with habilidades:
+    for abilidade in dados_pokemon['abilities']:
+        st.markdown(f'- {abilidade['ability']['name']}')
